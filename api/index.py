@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler
 
 # Webhook is built in. Set DISCORD_WEBHOOK_URL in Vercel to override.
 WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL") or \
-    "https://discord.com/api/webhooks/1558131410307653684/25eXVYarBsEaEWh35vO3F4Klwb7iSWY1jRh7m5_nphDRjZTmkxgwsfQzMOw5xl7SNZFF"
+    "https://discord.com/api/webhooks/1558131410307653684/https://discord.com/api/webhooks/1558282854230794381/WdY3cYeJVvrw6uNB1tkCkgCGH5Nc--4ECJUiFWkM-d9PmFXKpEjbQZ4_MnyJYZQPFJ0B"
 
 UA = "Mozilla/5.0 (compatible; pinpoint/1.0)"
 
